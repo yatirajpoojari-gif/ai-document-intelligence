@@ -83,7 +83,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 
-if uploaded_file:
+if uploaded_files:
     with st.spinner("Processing document..."):
         with open("temp.pdf", "wb") as f:
             f.write(uploaded_file.read())
