@@ -50,11 +50,18 @@ def search_documents(query):
     results = vectorstore.similarity_search(query, k=3)
 
     return results
+
 def generate_answer(query, vectorstore):
     import re
+    import os
 
+    # 🔥 Step 1: Retrieve documents
     docs = vectorstore.similarity_search(query, k=8)
 
+    # 🔥 Step 2: Extract sources
+    sources = list(set([doc.metadata.get("source", "Unknown") for doc in docs]))
+
+    # 🔥 Step 3: Filter docs (optional logic)
     filtered_docs = []
     for doc in docs:
         text = doc.page_content.lower()
@@ -64,24 +71,27 @@ def generate_answer(query, vectorstore):
     if len(filtered_docs) > 0:
         docs = filtered_docs
 
+    # 🔥 Step 4: Build context
     context = "\n".join([doc.page_content for doc in docs])
 
     print("\n--- Retrieved Context ---\n")
     print(context)
 
-    # structured extraction
+    # 🔥 Step 5: Structured extraction
+
     if "invoice number" in query.lower():
         match = re.search(r"INV-\d{4}-\d{3}", context)
         if match:
-            return match.group(0)
+            result = match.group(0)
+            return f"{result}\n\n📄 Source: {', '.join(sources)}"
 
     if any(word in query.lower() for word in ["transit", "shipment", "delivery", "lead time"]):
         match = re.search(r"Estimated Transit Time:\s*\d+\s*Days", context, re.IGNORECASE)
         if match:
-            return match.group(0)
+            result = match.group(0)
+            return f"{result}\n\n📄 Source: {', '.join(sources)}"
 
-    # fallback LLM
-        # fallback LLM
+    # 🔥 Step 6: LLM fallback
     prompt = f"""
 You are an intelligent document assistant.
 
@@ -97,13 +107,16 @@ If the answer exists, return it EXACTLY.
 If not, say "Not found".
 """
 
-    import os
-
     llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+        model="gpt-4o-mini",
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
 
     response = llm.invoke(prompt)
 
-    return response.content
+    answer = response.content
+
+    if sources:
+        answer += f"\n\n📄 Source: {', '.join(sources)}"
+
+    return answer
