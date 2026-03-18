@@ -70,15 +70,12 @@ from app.rag_pipeline import build_vector_store, generate_answer
 
 st.set_page_config(page_title="AI Document Assistant", layout="wide")
 
-st.title("🤖 AI Document Intelligence System")
-st.markdown("Chat with your PDF")
+
 
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Upload PDF
-uploaded_file = st.file_uploader("📄 Upload your PDF", type="pdf")
 
 if uploaded_file:
     with st.spinner("Processing document..."):
