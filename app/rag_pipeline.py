@@ -2,7 +2,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-from app.config import OPENAI_API_KEY
+
 
 
 def build_vector_store(documents):
@@ -100,9 +100,9 @@ If not, say "Not found".
     import os
 
     llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
+    model="gpt-4o-mini",
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
     response = llm.invoke(prompt)
 
