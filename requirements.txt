@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 streamlit
 langchain
 langchain-community
@@ -5,4 +6,13 @@ langchain-openai
 langchain-text-splitters
 chromadb
 sentence-transformers
+=======
+streamlit
+langchain
+langchain-community
+langchain-openai
+langchain-text-splitters
+chromadb
+sentence-transformers
+>>>>>>> 554fa7eeabe33b61e0e30ada32bb427573b0f83a
 pypdf
