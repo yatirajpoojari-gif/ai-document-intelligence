@@ -29,19 +29,25 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Upload PDF
-uploaded_file = st.file_uploader("📂 Upload your PDF", type="pdf")
+uploaded_files = st.file_uploader("📂 Upload your PDFs", type="pdf", accept_multiple_files=True)
 
-if uploaded_file:
-    with st.spinner("Processing document..."):
-        with open("temp.pdf", "wb") as f:
-            f.write(uploaded_file.read())
+if uploaded_files:
+    with st.spinner("Processing documents..."):
 
-        documents = load_documents("temp.pdf")
-        vectorstore = build_vector_store(documents)
+        all_documents = []
+
+        for file in uploaded_files:
+            with open(file.name, "wb") as f:
+                f.write(file.read())
+
+            docs = load_documents(file.name)
+            all_documents.extend(docs)
+
+        vectorstore = build_vector_store(all_documents)
 
         st.session_state["vectorstore"] = vectorstore
 
-    st.success("✅ Document ready!")
+    st.success(f"✅ {len(uploaded_files)} documents processed!")
 
 # Display chat history
 for msg in st.session_state.messages:
