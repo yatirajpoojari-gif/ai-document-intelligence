@@ -4,7 +4,6 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 
 
-
 def build_vector_store(documents):
     """
     Convert documents into embeddings and store in vector database
@@ -51,24 +50,25 @@ def search_documents(query):
 
     return results
 
+
 def generate_answer(query, vectorstore):
     import re
     import os
 
-    # 🔥 Step 1: Retrieve documents
-    docs = vectorstore.similarity_search(query, k=8)
+    # 🔥 Step 1: Retrieve relevant docs
+    docs = vectorstore.similarity_search(query, k=12)
 
     # 🔥 Step 2: Extract sources
     sources = list(set([doc.metadata.get("source", "Unknown") for doc in docs]))
 
-    # 🔥 Step 3: Filter docs (optional logic)
+    # 🔥 Step 3: Optional invoice filtering (only if query is invoice-related)
     filtered_docs = []
     for doc in docs:
         text = doc.page_content.lower()
         if "invoice" in text and "inv" in text:
             filtered_docs.append(doc)
 
-    if len(filtered_docs) > 0:
+    if "invoice" in query.lower() and len(filtered_docs) > 0:
         docs = filtered_docs
 
     # 🔥 Step 4: Build context
@@ -77,34 +77,40 @@ def generate_answer(query, vectorstore):
     print("\n--- Retrieved Context ---\n")
     print(context)
 
-    # 🔥 Step 5: Structured extraction
+    # 🔥 Step 5: Structured extraction (FAST + ACCURATE)
 
+    # Invoice number
     if "invoice number" in query.lower():
         match = re.search(r"INV-\d{4}-\d{3}", context)
         if match:
             result = match.group(0)
             return f"{result}\n\n📄 Source: {', '.join(sources)}"
 
+    # Transit / delivery time
     if any(word in query.lower() for word in ["transit", "shipment", "delivery", "lead time"]):
         match = re.search(r"Estimated Transit Time:\s*\d+\s*Days", context, re.IGNORECASE)
         if match:
             result = match.group(0)
             return f"{result}\n\n📄 Source: {', '.join(sources)}"
 
-    # 🔥 Step 6: LLM fallback
+    # 🔥 Step 6: LLM fallback (SMART ANSWER)
+
     prompt = f"""
 You are an intelligent document assistant.
 
-Extract the exact answer from the context.
+Answer the question based on the context.
+
+Rules:
+- Try to find the best possible answer from the context
+- If exact answer is not present, give the closest relevant answer
+- Do NOT say "Not found" unless absolutely nothing is relevant
+- Keep answer short and clear
 
 Context:
 {context}
 
 Question:
 {query}
-
-If the answer exists, return it EXACTLY.
-If not, say "Not found".
 """
 
     llm = ChatOpenAI(
@@ -116,6 +122,7 @@ If not, say "Not found".
 
     answer = response.content
 
+    # 🔥 Step 7: Add source to answer
     if sources:
         answer += f"\n\n📄 Source: {', '.join(sources)}"
 
