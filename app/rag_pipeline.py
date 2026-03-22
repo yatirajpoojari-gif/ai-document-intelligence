@@ -5,6 +5,38 @@ from langchain_openai import ChatOpenAI
 
 
 def build_vector_store(documents):
+    import shutil
+    import os
+
+    # 🔥 STEP 1: Delete old vector DB (VERY IMPORTANT)
+    if os.path.exists("vector_db"):
+        shutil.rmtree("vector_db")
+
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.vectorstores import Chroma
+
+    # Split text
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50
+    )
+
+    docs = text_splitter.split_documents(documents)
+
+    # Create embeddings
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+    # Store vectors
+    vectorstore = Chroma.from_documents(
+        docs,
+        embeddings,
+        persist_directory="vector_db"
+    )
+
+    return vectorstore
     """
     Convert documents into embeddings and store in vector database
     """

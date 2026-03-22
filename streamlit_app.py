@@ -42,13 +42,24 @@ if uploaded_files:
 
         all_documents = []
 
-        for file in uploaded_files:
-            with open(file.name, "wb") as f:
-                f.write(file.read())
+       import uuid
 
-            docs = load_documents(file.name)
+for file in uploaded_files:
+    file_path = f"temp_{uuid.uuid4().hex}.pdf"
+
+    with open(file_path, "wb") as f:
+        f.write(file.read())
+
+    docs = load_documents(file_path)
+
+    # Add source info
+    for doc in docs:
+        doc.metadata["source"] = file.name
+
+    all_documents.extend(docs)
 
             # Add source metadata
+            
             for doc in docs:
                 doc.metadata["source"] = file.name
 
