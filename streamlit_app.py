@@ -39,7 +39,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # =========================
-# 🔥 UPLOAD SECTION (ALWAYS ACTIVE)
+# 📂 UPLOAD SECTION
 # =========================
 st.markdown("### 📂 Add / Upload Documents")
 
@@ -49,30 +49,27 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-# Process uploaded files anytime
 if uploaded_files:
     with st.spinner("Processing documents..."):
 
         all_documents = []
 
         for file in uploaded_files:
-            # Unique file name
             file_path = f"temp_{uuid.uuid4().hex}.pdf"
 
-            # Save file
             with open(file_path, "wb") as f:
                 f.write(file.read())
 
-            # Load document
             docs = load_documents(file_path)
 
-            # Add source metadata
             for doc in docs:
                 doc.metadata["source"] = file.name
 
             all_documents.extend(docs)
 
-        # Build vector store
+            # 🔥 Track current document
+            st.session_state["current_doc"] = file.name
+
         vectorstore = build_vector_store(all_documents)
         st.session_state["vectorstore"] = vectorstore
 
@@ -94,21 +91,18 @@ if "vectorstore" in st.session_state:
     user_input = st.chat_input("Ask something about the document...")
 
     if user_input:
-        # User message
         st.chat_message("user").markdown(user_input)
         st.session_state.messages.append({
             "role": "user",
             "content": user_input
         })
 
-        # Generate answer
         with st.spinner("Thinking..."):
             answer = generate_answer(
                 user_input,
                 st.session_state["vectorstore"]
             )
 
-        # AI response
         st.chat_message("assistant").markdown(answer)
         st.session_state.messages.append({
             "role": "assistant",
