@@ -1,4 +1,5 @@
 import streamlit as st
+import uuid
 from app.document_loader import load_documents
 from app.rag_pipeline import build_vector_store, generate_answer
 
@@ -36,35 +37,30 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-# Process files
+# ✅ Process files (FIXED BLOCK)
 if uploaded_files:
     with st.spinner("Processing documents..."):
 
         all_documents = []
 
-       import uuid
+        for file in uploaded_files:
+            # 🔥 Unique file name
+            file_path = f"temp_{uuid.uuid4().hex}.pdf"
 
-for file in uploaded_files:
-    file_path = f"temp_{uuid.uuid4().hex}.pdf"
+            # Save file
+            with open(file_path, "wb") as f:
+                f.write(file.read())
 
-    with open(file_path, "wb") as f:
-        f.write(file.read())
-
-    docs = load_documents(file_path)
-
-    # Add source info
-    for doc in docs:
-        doc.metadata["source"] = file.name
-
-    all_documents.extend(docs)
+            # Load document
+            docs = load_documents(file_path)
 
             # Add source metadata
-            
             for doc in docs:
                 doc.metadata["source"] = file.name
 
             all_documents.extend(docs)
 
+        # Build vector store
         vectorstore = build_vector_store(all_documents)
         st.session_state["vectorstore"] = vectorstore
 
@@ -82,12 +78,21 @@ if "vectorstore" in st.session_state:
     if user_input:
         # Show user message
         st.chat_message("user").markdown(user_input)
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_input
+        })
 
         # Generate response
         with st.spinner("Thinking..."):
-            answer = generate_answer(user_input, st.session_state["vectorstore"])
+            answer = generate_answer(
+                user_input,
+                st.session_state["vectorstore"]
+            )
 
         # Show AI response
         st.chat_message("assistant").markdown(answer)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer
+        })
