@@ -22,7 +22,7 @@ def build_vector_store(documents):
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # ✅ FIX: No persist_directory (in-memory DB)
+    # ✅ In-memory vector DB (no crash)
     vectorstore = Chroma.from_documents(
         docs,
         embeddings
@@ -35,47 +35,45 @@ def generate_answer(query, vectorstore):
     import re
     import os
 
-    # 🔥 Retrieve relevant docs
+    # 🔥 Step 1: Retrieve documents
     docs = vectorstore.similarity_search(query, k=12)
 
-    # 🔥 Extract sources
+    # 🔥 Step 2: Extract sources
     sources = list(set([doc.metadata.get("source", "Unknown") for doc in docs]))
 
-    # 🔥 Optional filtering (only for invoices)
-    filtered_docs = []
-    for doc in docs:
-        text = doc.page_content.lower()
-        if "invoice" in text and "inv" in text:
-            filtered_docs.append(doc)
-
-    if "invoice" in query.lower() and len(filtered_docs) > 0:
-        docs = filtered_docs
-
-    # 🔥 Build context
+    # 🔥 Step 3: Build context
     context = "\n".join([doc.page_content for doc in docs])
 
     print("\n--- Retrieved Context ---\n")
     print(context)
 
-    # 🔥 Structured extraction
+    # =========================
+    # 🔥 STRUCTURED EXTRACTION
+    # =========================
 
+    # ✅ Invoice Number
     if "invoice number" in query.lower():
         match = re.search(r"INV-\d{4}-\d{3}", context)
         if match:
-            result = match.group(0)
-            return f"{result}\n\n📄 Source: {', '.join(sources)}"
+            return f"{match.group(0)}\n\n📄 Source: {', '.join(sources)}"
 
-    if any(word in query.lower() for word in ["transit", "shipment", "delivery", "lead time"]):
-        match = re.search(
-            r"Estimated Transit Time:\s*\d+\s*Days",
-            context,
-            re.IGNORECASE
-        )
+    # ✅ Resume Name
+    if "name" in query.lower():
+        match = re.search(r"[A-Z][a-z]+\s[A-Z][a-z]+", context)
         if match:
-            result = match.group(0)
-            return f"{result}\n\n📄 Source: {', '.join(sources)}"
+            return f"{match.group(0)}\n\n📄 Source: {', '.join(sources)}"
 
-    # 🔥 LLM fallback
+    # ✅ Skills (basic extraction)
+    if "skills" in query.lower():
+        return f"Skills found in document:\n{context[:500]}...\n\n📄 Source: {', '.join(sources)}"
+
+    # ✅ Experience
+    if "experience" in query.lower():
+        return f"Experience details:\n{context[:500]}...\n\n📄 Source: {', '.join(sources)}"
+
+    # =========================
+    # 🤖 LLM FALLBACK
+    # =========================
 
     prompt = f"""
 You are an intelligent document assistant.
@@ -83,9 +81,9 @@ You are an intelligent document assistant.
 Answer the question based on the context.
 
 Rules:
-- Try to find the best possible answer from the context
-- If exact answer is not present, give the closest relevant answer
-- Do NOT say "Not found" unless absolutely nothing is relevant
+- Answer ONLY from the context
+- Be specific (not generic)
+- If it's a resume, say it's a resume
 - Keep answer short and clear
 
 Context:
