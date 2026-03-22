@@ -19,14 +19,14 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # =========================
-# DISPLAY CHAT HISTORY
+# DISPLAY CHAT
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # =========================
-# UPLOAD + INPUT (BOTTOM STYLE)
+# BOTTOM INPUT BAR
 # =========================
 col1, col2 = st.columns([1, 8])
 
@@ -65,24 +65,24 @@ if uploaded_files:
         vectorstore = build_vector_store(all_documents)
         st.session_state["vectorstore"] = vectorstore
 
-    st.success(f"✅ {len(uploaded_files)} documents processed!")
+    st.success(f"✅ {len(uploaded_files)} document(s) processed!")
 
 # =========================
 # EXTRACT BUTTON
 # =========================
-if st.button("📊 Extract Invoice Data"):
+if st.button("📊 Extract Data"):
 
     if "vectorstore" in st.session_state:
 
         with st.spinner("Extracting..."):
             answer = generate_answer(
-                "Extract invoice number, date, total amount, vendor name",
+                "Extract key information",
                 st.session_state["vectorstore"]
             )
 
         st.write(answer)
 
-        # 🔥 Convert to Excel
+        # Convert to Excel
         try:
             json_data = answer.split("📄")[0].strip()
             data = json.loads(json_data)
@@ -92,7 +92,7 @@ if st.button("📊 Extract Invoice Data"):
             st.download_button(
                 "📥 Download Excel",
                 df.to_csv(index=False),
-                file_name="invoice_data.csv"
+                file_name="extracted_data.csv"
             )
 
         except:
@@ -103,13 +103,11 @@ if st.button("📊 Extract Invoice Data"):
 # =========================
 if user_input and "vectorstore" in st.session_state:
 
-    # User message
     st.session_state.messages.append({
         "role": "user",
         "content": user_input
     })
 
-    # AI response
     with st.spinner("Thinking..."):
         answer = generate_answer(
             user_input,

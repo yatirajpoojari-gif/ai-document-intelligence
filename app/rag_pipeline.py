@@ -1,20 +1,14 @@
+import os
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
-import os
-import shutil
-import re
 
 
 # =========================
 # BUILD VECTOR STORE
 # =========================
 def build_vector_store(documents):
-
-    # 🔥 Delete old DB (important)
-    if os.path.exists("vector_db"):
-        shutil.rmtree("vector_db")
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -27,13 +21,40 @@ def build_vector_store(documents):
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    vectorstore = Chroma.from_documents(
-        docs,
-        embeddings,
-        persist_directory="vector_db"
-    )
+    vectorstore = Chroma.from_documents(docs, embeddings)
 
     return vectorstore
+
+
+# =========================
+# DOCUMENT TYPE DETECTION
+# =========================
+def detect_document_type(context):
+
+    prompt = f"""
+Classify the document type from the context.
+
+Possible types:
+- invoice
+- resume
+- report
+- contract
+- other
+
+Return ONLY one word.
+
+Context:
+{context}
+"""
+
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+
+    response = llm.invoke(prompt)
+
+    return response.content.strip().lower()
 
 
 # =========================
@@ -41,7 +62,7 @@ def build_vector_store(documents):
 # =========================
 def generate_answer(query, vectorstore):
 
-    # 🔥 Retrieve docs
+    # 🔥 Retrieve relevant docs
     docs = vectorstore.similarity_search(query, k=12)
 
     # Extract sources
@@ -53,17 +74,19 @@ def generate_answer(query, vectorstore):
     print("\n--- Retrieved Context ---\n")
     print(context)
 
+    # 🔥 Detect document type
+    doc_type = detect_document_type(context)
+
+    print("Detected Document Type:", doc_type)
+
     # =========================
-    # STRUCTURED EXTRACTION
+    # SMART PROMPT BASED ON TYPE
     # =========================
-    if "invoice" in query.lower():
+
+    if doc_type == "invoice":
 
         prompt = f"""
-You are an intelligent document extraction system.
-
-Extract structured data from the document.
-
-Return output in JSON format like this:
+Extract the following details in JSON:
 
 {{
   "invoice_number": "...",
@@ -73,27 +96,37 @@ Return output in JSON format like this:
 }}
 
 Rules:
-- Extract only if present
 - Do not guess
 - If missing, return null
 
 Context:
 {context}
+"""
 
-Question:
-{query}
+    elif doc_type == "resume":
+
+        prompt = f"""
+Extract key details from resume in JSON:
+
+{{
+  "name": "...",
+  "skills": "...",
+  "experience": "...",
+  "education": "..."
+}}
+
+Context:
+{context}
 """
 
     else:
-        # Normal Q&A
-        prompt = f"""
-You are an intelligent document assistant.
 
-Answer the question using ONLY the context.
+        prompt = f"""
+Answer the question based on context.
 
 Rules:
 - Do NOT guess
-- If answer not found, say "Not found in document"
+- Be accurate
 
 Context:
 {context}
@@ -111,7 +144,7 @@ Question:
 
     answer = response.content
 
-    # Add source
+    # Add sources
     if sources:
         answer += f"\n\n📄 Source: {', '.join(sources)}"
 
