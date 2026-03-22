@@ -9,7 +9,7 @@ def build_vector_store(documents):
     Convert documents into embeddings and store in vector database
     """
 
-    # Split text
+    # Split text into chunks
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50
@@ -22,7 +22,7 @@ def build_vector_store(documents):
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # ✅ In-memory vector DB (no crash)
+    # In-memory vector store (no persistence → avoids crash)
     vectorstore = Chroma.from_documents(
         docs,
         embeddings
@@ -32,10 +32,9 @@ def build_vector_store(documents):
 
 
 def generate_answer(query, vectorstore):
-    import re
     import os
 
-    # 🔥 Step 1: Retrieve documents
+    # 🔥 Step 1: Retrieve relevant documents
     docs = vectorstore.similarity_search(query, k=12)
 
     # 🔥 Step 2: Extract sources
@@ -48,43 +47,35 @@ def generate_answer(query, vectorstore):
     print(context)
 
     # =========================
-    # 🔥 STRUCTURED EXTRACTION
-    # =========================
-
-    # ✅ Invoice Number
-    if "invoice number" in query.lower():
-        match = re.search(r"INV-\d{4}-\d{3}", context)
-        if match:
-            return f"{match.group(0)}\n\n📄 Source: {', '.join(sources)}"
-
-    # ✅ Resume Name
-    if "name" in query.lower():
-        match = re.search(r"[A-Z][a-z]+\s[A-Z][a-z]+", context)
-        if match:
-            return f"{match.group(0)}\n\n📄 Source: {', '.join(sources)}"
-
-    # ✅ Skills (basic extraction)
-    if "skills" in query.lower():
-        return f"Skills found in document:\n{context[:500]}...\n\n📄 Source: {', '.join(sources)}"
-
-    # ✅ Experience
-    if "experience" in query.lower():
-        return f"Experience details:\n{context[:500]}...\n\n📄 Source: {', '.join(sources)}"
-
-    # =========================
-    # 🤖 LLM FALLBACK
+    # 🤖 DYNAMIC EXTRACTION (NO HARDCODING)
     # =========================
 
     prompt = f"""
-You are an intelligent document assistant.
+You are an intelligent document extraction assistant.
 
-Answer the question based on the context.
+Your job is to extract structured information from the document.
 
-Rules:
-- Answer ONLY from the context
-- Be specific (not generic)
-- If it's a resume, say it's a resume
-- Keep answer short and clear
+Instructions:
+- Identify what type of document this is (resume, invoice, report, etc.)
+- Extract key fields depending on document type
+- Keep output structured and clean
+
+If it's a RESUME, extract:
+- Name
+- Skills
+- Experience
+- Education
+
+If it's an INVOICE, extract:
+- Invoice Number
+- Date
+- Total Amount
+- Buyer Name
+
+If it's something else:
+- Provide a clear summary
+
+Keep the response concise and well formatted.
 
 Context:
 {context}
@@ -93,6 +84,7 @@ Question:
 {query}
 """
 
+    # 🔥 Step 4: LLM call
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         api_key=os.getenv("OPENAI_API_KEY")
@@ -102,6 +94,7 @@ Question:
 
     answer = response.content
 
+    # 🔥 Step 5: Add source info
     if sources:
         answer += f"\n\n📄 Source: {', '.join(sources)}"
 
