@@ -3,17 +3,21 @@ import uuid
 from app.document_loader import load_documents
 from app.rag_pipeline import build_vector_store, generate_answer
 
-# Page config
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(
     page_title="AI Document Intelligence",
     page_icon="📄",
     layout="wide"
 )
 
-# Sidebar
+# =========================
+# SIDEBAR
+# =========================
 st.sidebar.title("📊 AI Document Intelligence")
 st.sidebar.markdown("""
-Upload invoices, extract data, and ask questions.
+Upload documents, extract insights, and ask questions.
 
 Built for:
 - Exporters
@@ -22,29 +26,37 @@ Built for:
 """)
 st.sidebar.info("Powered by AI 🚀")
 
-# Main UI
+# =========================
+# MAIN HEADER
+# =========================
 st.title("📄 AI Document Intelligence System")
 st.markdown("### Extract insights from your documents instantly")
 
-# Initialize chat history
+# =========================
+# SESSION STATE INIT
+# =========================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Upload multiple PDFs
+# =========================
+# 🔥 UPLOAD SECTION (ALWAYS ACTIVE)
+# =========================
+st.markdown("### 📂 Add / Upload Documents")
+
 uploaded_files = st.file_uploader(
-    "📂 Upload your PDFs",
+    "Upload PDFs",
     type="pdf",
     accept_multiple_files=True
 )
 
-# ✅ Process files (FIXED BLOCK)
+# Process uploaded files anytime
 if uploaded_files:
     with st.spinner("Processing documents..."):
 
         all_documents = []
 
         for file in uploaded_files:
-            # 🔥 Unique file name
+            # Unique file name
             file_path = f"temp_{uuid.uuid4().hex}.pdf"
 
             # Save file
@@ -64,33 +76,39 @@ if uploaded_files:
         vectorstore = build_vector_store(all_documents)
         st.session_state["vectorstore"] = vectorstore
 
-    st.success(f"✅ {len(uploaded_files)} documents processed!")
+    st.success("✅ Document(s) uploaded successfully!")
 
-# Display chat history
+# =========================
+# CHAT HISTORY
+# =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Chat input
+# =========================
+# CHAT INPUT
+# =========================
 if "vectorstore" in st.session_state:
+    st.markdown("### 💬 Ask Questions")
+
     user_input = st.chat_input("Ask something about the document...")
 
     if user_input:
-        # Show user message
+        # User message
         st.chat_message("user").markdown(user_input)
         st.session_state.messages.append({
             "role": "user",
             "content": user_input
         })
 
-        # Generate response
+        # Generate answer
         with st.spinner("Thinking..."):
             answer = generate_answer(
                 user_input,
                 st.session_state["vectorstore"]
             )
 
-        # Show AI response
+        # AI response
         st.chat_message("assistant").markdown(answer)
         st.session_state.messages.append({
             "role": "assistant",
