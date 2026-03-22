@@ -7,19 +7,10 @@ from app.rag_pipeline import build_vector_store, generate_answer
 # PAGE CONFIG
 # =========================
 st.set_page_config(
-    page_title="AI Document Intelligence",
-    page_icon="📄",
+    page_title="AI Document Chat",
+    page_icon="🤖",
     layout="wide"
 )
-
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.title("📊 AI Document Intelligence")
-st.sidebar.markdown("""
-Upload documents, extract insights, and ask questions.
-""")
-st.sidebar.info("Powered by AI 🚀")
 
 # =========================
 # HEADER
@@ -33,20 +24,19 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # =========================
-# DISPLAY CHAT
+# DISPLAY CHAT HISTORY
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # =========================
-# 🔥 CHATGPT STYLE INPUT BAR
+# 🔥 BOTTOM BAR (UPLOAD + INPUT)
 # =========================
-st.markdown("---")
 
-col1, col2 = st.columns([1, 5])
+col1, col2 = st.columns([1, 8])
 
-# ➕ Upload Button (LEFT SIDE)
+# ➕ Upload (left of input)
 with col1:
     uploaded_files = st.file_uploader(
         "➕",
@@ -55,15 +45,15 @@ with col1:
         label_visibility="collapsed"
     )
 
-# 💬 Chat Input (RIGHT SIDE)
+# 💬 Chat input (right side)
 with col2:
     user_input = st.chat_input("Ask something about the document...")
 
 # =========================
-# 🔥 PROCESS UPLOAD
+# PROCESS FILES
 # =========================
 if uploaded_files:
-    with st.spinner("Processing documents..."):
+    with st.spinner("Processing document..."):
 
         all_documents = []
 
@@ -86,15 +76,14 @@ if uploaded_files:
         vectorstore = build_vector_store(all_documents)
         st.session_state["vectorstore"] = vectorstore
 
-    st.success("✅ Document uploaded!")
+    st.toast("✅ Document uploaded")
 
 # =========================
-# 🔥 HANDLE CHAT
+# HANDLE CHAT
 # =========================
 if user_input and "vectorstore" in st.session_state:
 
     # User message
-    st.chat_message("user").markdown(user_input)
     st.session_state.messages.append({
         "role": "user",
         "content": user_input
@@ -107,8 +96,9 @@ if user_input and "vectorstore" in st.session_state:
             st.session_state["vectorstore"]
         )
 
-    st.chat_message("assistant").markdown(answer)
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer
     })
+
+    st.rerun()
